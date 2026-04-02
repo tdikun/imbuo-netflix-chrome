@@ -10,11 +10,17 @@
       <h1>Make Netflix Straight Again</h1>
     </header>
 
-    <!-- State: Not on restrictions page -->
-    <div id="state-not-ready" class="state hidden">
-      <p class="message">Navigate to a Netflix profile's <strong>Parental Controls</strong> page to get started.</p>
-      <a href="#" id="link-restrictions" class="btn-primary" style="text-align:center;text-decoration:none;">Open Netflix Restrictions</a>
-      <p class="hint">You'll need to select a profile and enter your PIN on Netflix before the extension can manage restrictions.</p>
+    <!-- State: Not on Netflix -->
+    <div id="state-not-netflix" class="state hidden">
+      <p class="message">Open <strong>Netflix</strong> in this tab to get started.</p>
+      <a href="#" id="link-netflix" class="btn-primary" style="text-align:center;text-decoration:none;">Open Netflix</a>
+    </div>
+
+    <!-- State: Profile picker -->
+    <div id="state-profiles" class="state hidden">
+      <p class="message">Select a profile to manage restrictions:</p>
+      <div id="profile-list" class="profile-list"></div>
+      <p class="hint">You'll need to enter your Netflix account password after selecting a profile.</p>
     </div>
 
     <!-- State: Ready to fetch -->

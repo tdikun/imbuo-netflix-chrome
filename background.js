@@ -18,6 +18,20 @@ chrome.action.onClicked.addListener((tab) => {
 let debuggerAttachedTabId = null;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'extractProfilesMain') {
+    chrome.scripting.executeScript({
+      target: { tabId: message.tabId },
+      files: ['content/extract-profiles.js'],
+      world: 'MAIN',
+    }).then((results) => {
+      const profiles = results?.[0]?.result || null;
+      sendResponse({ profiles });
+    }).catch(() => {
+      sendResponse({ profiles: null });
+    });
+    return true;
+  }
+
   if (message.action === 'debuggerTypeText') {
     handleDebuggerType(message.tabId, message.text)
       .then(() => sendResponse({ ok: true }))

@@ -169,6 +169,59 @@ header .subtitle {
   font-size: 13px;
 }
 
+/* Profile picker */
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.profile-card:hover {
+  background: #f8f8f8;
+  border-color: #ccc;
+}
+
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #e5e5e5;
+}
+
+.profile-avatar-blank {
+  display: block;
+}
+
+.profile-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.badge-kids {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
 /* Spinner */
 .spinner {
   width: 28px;
@@ -200,27 +253,53 @@ header .subtitle {
 .title-list {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid #e5e5e5;
-  border-radius: 4px;
   min-height: 0;
-}
-
-.title-row {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.title-row:last-child {
-  border-bottom: none;
-}
-
-.title-row input[type="checkbox"] {
+/* Card */
+.title-card {
+  border: 2px solid #e5e5e5;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.15s;
   flex-shrink: 0;
 }
 
+.title-card.selected {
+  border-color: #e50914;
+}
+
+.title-card-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.title-card.selected .title-card-main {
+  background: #fef2f2;
+}
+
+/* Poster */
+.title-poster {
+  width: 36px;
+  height: 54px;
+  border-radius: 3px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #e5e5e5;
+}
+
+.title-poster-blank {
+  display: block;
+}
+
+/* Info */
 .title-info {
   flex: 1;
   min-width: 0;
@@ -228,25 +307,34 @@ header .subtitle {
 
 .title-name {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.title-year {
+.title-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
   font-size: 11px;
   color: #888;
-  margin-top: 1px;
+  flex-wrap: wrap;
 }
 
+.meta-dot {
+  color: #ccc;
+}
+
+/* Badge */
 .badge {
-  flex-shrink: 0;
-  padding: 2px 6px;
+  padding: 1px 5px;
   border-radius: 3px;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 9px;
+  font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .badge-explicit {
@@ -257,6 +345,43 @@ header .subtitle {
 .badge-implied {
   background: #fff3cd;
   color: #856404;
+}
+
+/* Expand button */
+.btn-expand {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  font-size: 18px;
+  color: #999;
+  cursor: pointer;
+  transition: transform 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-expand:hover {
+  color: #333;
+}
+
+.btn-expand.expanded {
+  transform: rotate(90deg);
+}
+
+/* Evidence */
+.title-evidence {
+  padding: 8px 12px 10px;
+  background: #f8f8f8;
+  border-top: 1px solid #eee;
+}
+
+.title-evidence p {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #555;
 }
 
 /* Progress */

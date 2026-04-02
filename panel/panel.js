@@ -1,7 +1,8 @@
 (async function () {
   // Elements
   const states = {
-    notReady: document.getElementById('state-not-ready'),
+    notNetflix: document.getElementById('state-not-netflix'),
+    profiles: document.getElementById('state-profiles'),
     ready: document.getElementById('state-ready'),
     settings: document.getElementById('state-settings'),
     loading: document.getElementById('state-loading'),
@@ -12,6 +13,7 @@
   };
 
   const el = {
+    profileList: document.getElementById('profile-list'),
     includeImplied: document.getElementById('include-implied'),
     btnFetch: document.getElementById('btn-fetch'),
     btnSettings: document.getElementById('btn-settings'),
@@ -42,6 +44,10 @@
   function showState(name) {
     Object.values(states).forEach((s) => s.classList.add('hidden'));
     states[name].classList.remove('hidden');
+  }
+
+  function getCurrentState() {
+    return Object.entries(states).find(([, s]) => !s.classList.contains('hidden'))?.[0];
   }
 
   // Get active tab
@@ -79,34 +85,89 @@
     return (data.imbuoConfig || {}).backendUrl || CONFIG.DEFAULT_BACKEND_URL;
   }
 
-  // Check if current tab is on the Netflix restrictions page
+  // Determine state based on current tab
   async function checkTabReady() {
     const tab = await getActiveTab();
     if (!tab) {
-      showState('notReady');
+      showState('notNetflix');
       return;
     }
 
     activeTabId = tab.id;
 
-    if (!tab.url || !tab.url.match(/netflix\.com\/settings\/restrictions\//)) {
-      showState('notReady');
+    // Not on Netflix at all
+    if (!tab.url || !tab.url.match(/netflix\.com/)) {
+      showState('notNetflix');
       return;
     }
 
-    try {
-      const response = await sendToContent({ action: 'checkReady' });
-      if (response && response.ready) {
-        showState('ready');
-      } else {
-        showState('notReady');
-      }
-    } catch {
-      showState('notReady');
+    // On a restrictions page — check if the search input is ready
+    if (tab.url.match(/netflix\.com\/settings\/restrictions/)) {
+      try {
+        const response = await sendToContent({ action: 'checkReady' });
+        if (response && response.ready) {
+          showState('ready');
+          return;
+        }
+      } catch {}
     }
+
+    // On Netflix but not on a ready restrictions page — extract profiles via background
+    try {
+      const response = await new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          { action: 'extractProfilesMain', tabId: activeTabId },
+          (res) => {
+            if (chrome.runtime.lastError) {
+              resolve(null);
+              return;
+            }
+            resolve(res);
+          }
+        );
+      });
+      if (response && response.profiles && response.profiles.length > 0) {
+        renderProfiles(response.profiles);
+        return;
+      }
+    } catch {}
+
+    // On Netflix but couldn't extract profiles
+    showState('notNetflix');
   }
 
-  // Fetch titles from Imbuo API
+  // Render profile picker
+  function renderProfiles(profiles) {
+    showState('profiles');
+    el.profileList.innerHTML = '';
+
+    profiles.forEach((profile) => {
+      const card = document.createElement('div');
+      card.className = 'profile-card';
+
+      const avatarHtml = profile.avatarUrl
+        ? `<img class="profile-avatar" src="${escapeHtml(profile.avatarUrl)}" alt="">`
+        : `<div class="profile-avatar profile-avatar-blank"></div>`;
+
+      const kidsLabel = profile.isKids ? '<span class="badge badge-kids">Kids</span>' : '';
+
+      card.innerHTML = `
+        ${avatarHtml}
+        <div class="profile-info">
+          <div class="profile-name">${escapeHtml(profile.name)}</div>
+          ${kidsLabel}
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        chrome.tabs.update(activeTabId, { url: profile.restrictionsUrl });
+      });
+
+      el.profileList.appendChild(card);
+    });
+  }
+
+  // Fetch titles from API
   async function fetchTitles() {
     showState('loading');
 
@@ -159,33 +220,64 @@
     el.titleList.innerHTML = '';
 
     titles.forEach((title, i) => {
-      const row = document.createElement('div');
-      row.className = 'title-row';
+      const card = document.createElement('div');
+      card.className = 'title-card selected';
+      card.dataset.index = i;
 
       const badge = title.lgbtq_explicit ? 'explicit' : 'implied';
       const badgeClass = title.lgbtq_explicit ? 'badge-explicit' : 'badge-implied';
+      const posterSrc = title.poster_url
+        ? escapeHtml(title.poster_url)
+        : '';
+      const posterHtml = posterSrc
+        ? `<img class="title-poster" src="${posterSrc}" alt="">`
+        : `<div class="title-poster title-poster-blank"></div>`;
 
-      row.innerHTML = `
-        <input type="checkbox" checked data-index="${i}">
-        <div class="title-info">
-          <div class="title-name" title="${escapeHtml(title.title)}">${escapeHtml(title.title)}</div>
-          <div class="title-year">${escapeHtml(title.year || '')} &middot; ${escapeHtml(title.content_type)}</div>
+      card.innerHTML = `
+        <div class="title-card-main">
+          ${posterHtml}
+          <div class="title-info">
+            <div class="title-name" title="${escapeHtml(title.title)}">${escapeHtml(title.title)}</div>
+            <div class="title-meta">
+              <span>${escapeHtml(title.year || '')}</span>
+              <span class="meta-dot">&middot;</span>
+              <span>${escapeHtml(title.content_type)}</span>
+              <span class="badge ${badgeClass}">${badge}</span>
+            </div>
+          </div>
+          <button class="btn-expand" title="Show evidence">&rsaquo;</button>
         </div>
-        <span class="badge ${badgeClass}">${badge}</span>
+        <div class="title-evidence hidden">
+          <p>${escapeHtml(title.evidence || 'No evidence provided.')}</p>
+        </div>
       `;
 
-      el.titleList.appendChild(row);
+      card.querySelector('.title-card-main').addEventListener('click', (e) => {
+        if (e.target.closest('.btn-expand')) return;
+        card.classList.toggle('selected');
+        updateApplyButton();
+      });
+
+      card.querySelector('.btn-expand').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const evidence = card.querySelector('.title-evidence');
+        const btn = card.querySelector('.btn-expand');
+        evidence.classList.toggle('hidden');
+        btn.classList.toggle('expanded');
+      });
+
+      el.titleList.appendChild(card);
     });
 
     updateApplyButton();
   }
 
   function getSelectedTitles() {
-    const checkboxes = el.titleList.querySelectorAll('input[type="checkbox"]');
+    const cards = el.titleList.querySelectorAll('.title-card');
     const selected = [];
-    checkboxes.forEach((cb) => {
-      if (cb.checked) {
-        selected.push(currentTitles[parseInt(cb.dataset.index)]);
+    cards.forEach((card) => {
+      if (card.classList.contains('selected')) {
+        selected.push(currentTitles[parseInt(card.dataset.index)]);
       }
     });
     return selected;
@@ -256,10 +348,10 @@
     }
   });
 
-  // Re-check when the user switches tabs (sidebar stays open)
+  // Re-check when the user switches tabs
   chrome.tabs.onActivated.addListener(() => {
-    const currentState = Object.entries(states).find(([, s]) => !s.classList.contains('hidden'));
-    if (currentState && (currentState[0] === 'notReady' || currentState[0] === 'ready')) {
+    const s = getCurrentState();
+    if (s === 'notNetflix' || s === 'profiles' || s === 'ready') {
       checkTabReady();
     }
   });
@@ -267,21 +359,21 @@
   // Re-check when the active tab navigates
   chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (changeInfo.status === 'complete' && tabId === activeTabId) {
-      const currentState = Object.entries(states).find(([, s]) => !s.classList.contains('hidden'));
-      if (currentState && (currentState[0] === 'notReady' || currentState[0] === 'ready')) {
+      const s = getCurrentState();
+      if (s === 'notNetflix' || s === 'profiles' || s === 'ready') {
         checkTabReady();
       }
     }
   });
 
   // Event listeners
-  document.getElementById('link-restrictions').addEventListener('click', async (e) => {
+  document.getElementById('link-netflix').addEventListener('click', async (e) => {
     e.preventDefault();
     const tab = await getActiveTab();
     if (tab) {
-      chrome.tabs.update(tab.id, { url: 'https://www.netflix.com/settings/restrictions/' });
+      chrome.tabs.update(tab.id, { url: 'https://www.netflix.com/browse' });
     } else {
-      chrome.tabs.create({ url: 'https://www.netflix.com/settings/restrictions/' });
+      chrome.tabs.create({ url: 'https://www.netflix.com/browse' });
     }
   });
 
@@ -298,16 +390,14 @@
   });
 
   el.btnSelectAll.addEventListener('click', () => {
-    el.titleList.querySelectorAll('input[type="checkbox"]').forEach((cb) => (cb.checked = true));
+    el.titleList.querySelectorAll('.title-card').forEach((c) => c.classList.add('selected'));
     updateApplyButton();
   });
 
   el.btnSelectNone.addEventListener('click', () => {
-    el.titleList.querySelectorAll('input[type="checkbox"]').forEach((cb) => (cb.checked = false));
+    el.titleList.querySelectorAll('.title-card').forEach((c) => c.classList.remove('selected'));
     updateApplyButton();
   });
-
-  el.titleList.addEventListener('change', updateApplyButton);
 
   el.btnApply.addEventListener('click', startBatch);
 
