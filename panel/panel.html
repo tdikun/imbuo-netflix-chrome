@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Make Netflix Straight Again</h1>
+    </header>
+
+    <!-- State: Not on restrictions page -->
+    <div id="state-not-ready" class="state hidden">
+      <p class="message">Navigate to a Netflix profile's <strong>Parental Controls</strong> page to get started.</p>
+      <a href="#" id="link-restrictions" class="btn-primary" style="text-align:center;text-decoration:none;">Open Netflix Restrictions</a>
+      <p class="hint">You'll need to select a profile and enter your PIN on Netflix before the extension can manage restrictions.</p>
+    </div>
+
+    <!-- State: Ready to fetch -->
+    <div id="state-ready" class="state hidden">
+      <div class="controls">
+        <label class="toggle-row">
+          <input type="checkbox" id="include-implied" checked>
+          <span>Include implied/coded</span>
+        </label>
+      </div>
+      <button id="btn-fetch" class="btn-primary">Fetch Titles</button>
+      <button id="btn-settings" class="btn-link">Settings</button>
+    </div>
+
+    <!-- State: Settings -->
+    <div id="state-settings" class="state hidden">
+      <h2>Settings</h2>
+      <label class="field">
+        <span>Backend URL</span>
+        <input type="text" id="settings-url" placeholder="http://localhost:8001">
+      </label>
+      <div class="button-row">
+        <button id="btn-save-settings" class="btn-primary">Save</button>
+        <button id="btn-back-settings" class="btn-secondary">Back</button>
+      </div>
+    </div>
+
+    <!-- State: Loading -->
+    <div id="state-loading" class="state hidden">
+      <div class="spinner"></div>
+      <p>Fetching titles...</p>
+    </div>
+
+    <!-- State: Error -->
+    <div id="state-error" class="state hidden">
+      <p class="error-message" id="error-text"></p>
+      <button id="btn-retry" class="btn-primary">Retry</button>
+    </div>
+
+    <!-- State: Title list -->
+    <div id="state-list" class="state hidden">
+      <div class="list-header">
+        <p id="list-summary"></p>
+        <div class="button-row">
+          <button id="btn-select-all" class="btn-link">Select All</button>
+          <button id="btn-select-none" class="btn-link">Select None</button>
+        </div>
+      </div>
+      <div id="title-list" class="title-list"></div>
+      <button id="btn-apply" class="btn-primary">Apply Selected</button>
+    </div>
+
+    <!-- State: Batch in progress -->
+    <div id="state-batch" class="state hidden">
+      <div class="progress-header">
+        <span id="progress-text">0 of 0</span>
+        <button id="btn-abort" class="btn-danger btn-small">Cancel</button>
+      </div>
+      <div class="progress-bar-container">
+        <div id="progress-bar" class="progress-bar"></div>
+      </div>
+      <div id="batch-log" class="batch-log"></div>
+    </div>
+
+    <!-- State: Complete -->
+    <div id="state-complete" class="state hidden">
+      <h2>Batch Complete</h2>
+      <div id="complete-summary"></div>
+      <div class="button-row">
+        <button id="btn-save-netflix" class="btn-primary">Save to Netflix</button>
+        <button id="btn-cancel-netflix" class="btn-secondary">Cancel All</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../config.js"></script>
+  <script src="../matching.js"></script>
+  <script src="panel.js"></script>
+</body>
+</html>
