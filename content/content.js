@@ -14,7 +14,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === 'startBatch') {
     batchAborted = false;
-    processBatch(message.titles).then((summary) => {
+    processBatch(message.titles, message.tabId).then((summary) => {
       chrome.runtime.sendMessage({ status: 'complete', summary });
     });
   }
@@ -36,16 +36,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-async function processBatch(titles) {
+function sendToBackground(message) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      resolve(response);
+    });
+  });
+}
+
+async function processBatch(titles, tabId) {
   const summary = { added: 0, unmatched: 0, duplicate: 0, errors: 0 };
   const total = titles.length;
+
+  // Attach debugger for the batch
+  await sendToBackground({ action: 'debuggerAttach', tabId });
 
   for (let i = 0; i < total; i++) {
     if (batchAborted) break;
 
     const title = titles[i];
 
-    // Check if session expired (redirected away from restrictions page)
     if (!document.querySelector(CONFIG.SELECTORS.SEARCH_INPUT)) {
       chrome.runtime.sendMessage({
         status: 'error',
@@ -54,7 +64,6 @@ async function processBatch(titles) {
       break;
     }
 
-    // Check if already restricted (secondary safety check)
     const existingItems = document.querySelectorAll(CONFIG.SELECTORS.PROTECTED_VIDEO_ITEM);
     const existingTitles = Array.from(existingItems).map((el) => el.textContent.trim());
     if (isAlreadyRestricted(title.title, existingTitles)) {
@@ -63,11 +72,10 @@ async function processBatch(titles) {
       continue;
     }
 
-    const result = await restrictTitle(title.title);
+    const result = await restrictTitle(title.title, tabId);
     summary[result]++;
     sendProgress(i + 1, total, title.title, result);
 
-    // Throttle between titles
     const delay = randomDelay(
       CONFIG.DELAY_BETWEEN_TITLES_MIN_MS,
       CONFIG.DELAY_BETWEEN_TITLES_MAX_MS
@@ -75,30 +83,39 @@ async function processBatch(titles) {
     await sleep(delay);
   }
 
+  // Detach debugger when done
+  await sendToBackground({ action: 'debuggerDetach' });
+
   return summary;
 }
 
-async function restrictTitle(titleName) {
+async function restrictTitle(titleName, tabId) {
   try {
     // Step 1: Clear input
-    await clearSearchInput();
+    await clearSearchInput(tabId);
 
-    // Step 2: Type search term
+    // Step 2: Blur+focus cycle to reset React's isFocused state
+    // (selectTitle sets isFocused:false without blurring the DOM input,
+    //  so focus() alone is a no-op on 2nd+ titles)
     const input = document.querySelector(CONFIG.SELECTORS.SEARCH_INPUT);
     if (!input) return 'errors';
 
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-    setter.call(input, titleName);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.blur();
+    await sleep(50);
+    input.focus();
+    await sleep(50);
 
-    // Step 3: Wait for autocomplete results
+    // Step 3: Type via CDP (trusted input)
+    await sendToBackground({ action: 'debuggerTypeText', tabId, text: titleName });
+
+    // Step 4: Wait for autocomplete results
     const results = await waitForAutocomplete();
     if (!results || results.length === 0) {
-      await clearSearchInput();
+      await clearSearchInput(tabId);
       return 'unmatched';
     }
 
-    // Step 4: Find best match
+    // Step 5: Find best match
     const candidates = results.map((el) => ({
       text: el.textContent.trim(),
       element: el,
@@ -106,15 +123,15 @@ async function restrictTitle(titleName) {
 
     const match = findBestMatch(titleName, candidates, CONFIG.MATCH_THRESHOLD);
     if (!match) {
-      await clearSearchInput();
+      await clearSearchInput(tabId);
       return 'unmatched';
     }
 
-    // Step 5: Click the match
+    // Step 6: Click the match
     const countBefore = document.querySelectorAll(CONFIG.SELECTORS.PROTECTED_VIDEO_ITEM).length;
     match.match.element.click();
 
-    // Step 6: Verify addition
+    // Step 7: Verify addition
     await sleep(300);
     const countAfter = document.querySelectorAll(CONFIG.SELECTORS.PROTECTED_VIDEO_ITEM).length;
 
@@ -129,7 +146,7 @@ async function restrictTitle(titleName) {
   }
 }
 
-async function clearSearchInput() {
+async function clearSearchInput(tabId) {
   const clearBtn = document.querySelector(CONFIG.SELECTORS.CLEAR_INPUT_BUTTON);
   if (clearBtn) {
     clearBtn.click();
@@ -138,9 +155,9 @@ async function clearSearchInput() {
 
   const input = document.querySelector(CONFIG.SELECTORS.SEARCH_INPUT);
   if (input && input.value) {
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-    setter.call(input, '');
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+    await sleep(50);
+    await sendToBackground({ action: 'debuggerClear', tabId });
     await sleep(100);
   }
 }
@@ -151,7 +168,6 @@ async function waitForAutocomplete(retries = 1) {
     if (result) return result;
 
     if (attempt < retries) {
-      // Retry: clear and re-type on timeout
       await sleep(500);
     }
   }

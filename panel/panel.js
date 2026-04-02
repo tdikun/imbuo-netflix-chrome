@@ -213,7 +213,7 @@
     el.progressBar.style.width = '0%';
     el.progressText.textContent = `0 of ${selected.length}`;
 
-    await sendToContent({ action: 'startBatch', titles: selected });
+    await sendToContent({ action: 'startBatch', titles: selected, tabId: activeTabId });
   }
 
   // Listen for progress updates from content script

@@ -3,7 +3,7 @@
   "name": "Make Netflix Straight Again",
   "version": "0.1.0",
   "description": "Batch-apply LGBTQ content restrictions to Netflix profiles.",
-  "permissions": ["activeTab", "tabs", "storage", "scripting", "sidePanel"],
+  "permissions": ["activeTab", "tabs", "storage", "scripting", "sidePanel", "debugger"],
   "host_permissions": [
     "https://www.netflix.com/*",
     "http://localhost:8001/*"
