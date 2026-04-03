@@ -10,6 +10,26 @@
       <h1>Make Netflix Straight Again</h1>
     </header>
 
+    <!-- State: Checking auth -->
+    <div id="state-auth-loading" class="state hidden">
+      <div class="spinner"></div>
+      <p>Checking account...</p>
+    </div>
+
+    <!-- State: Logged out -->
+    <div id="state-logged-out" class="state hidden">
+      <p class="message">Sign in to access content filtering.</p>
+      <button id="btn-login" class="btn-primary">Log In</button>
+      <button id="btn-register" class="btn-secondary">Create Account</button>
+    </div>
+
+    <!-- State: No subscription -->
+    <div id="state-no-sub" class="state hidden">
+      <p class="message">Your account doesn't have an active subscription.</p>
+      <button id="btn-subscribe" class="btn-primary">Subscribe</button>
+      <button id="btn-logout-nosub" class="btn-link">Log out</button>
+    </div>
+
     <!-- State: Not on Netflix -->
     <div id="state-not-netflix" class="state hidden">
       <p class="message">Open <strong>Netflix</strong> in this tab to get started.</p>
@@ -32,7 +52,10 @@
         </label>
       </div>
       <button id="btn-fetch" class="btn-primary">Fetch Titles</button>
-      <button id="btn-settings" class="btn-link">Settings</button>
+      <div class="button-row">
+        <button id="btn-settings" class="btn-link">Settings</button>
+        <button id="btn-logout" class="btn-link">Log out</button>
+      </div>
     </div>
 
     <!-- State: Settings -->

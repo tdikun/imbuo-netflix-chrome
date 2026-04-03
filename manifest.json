@@ -6,7 +6,8 @@
   "permissions": ["activeTab", "tabs", "storage", "scripting", "sidePanel", "debugger"],
   "host_permissions": [
     "https://www.netflix.com/*",
-    "http://localhost:8001/*"
+    "http://localhost:8001/*",
+    "http://localhost:8081/*"
   ],
   "action": {
     "default_icon": {
@@ -19,6 +20,17 @@
     "default_path": "panel/panel.html"
   },
   "content_scripts": [
+    {
+      "matches": ["http://localhost:8081/*"],
+      "js": ["content/auth-bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["http://localhost:8081/*"],
+      "js": ["content/auth-relay.js"],
+      "run_at": "document_start"
+    },
     {
       "matches": ["https://www.netflix.com/*"],
       "js": ["content/profiles.js"],

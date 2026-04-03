@@ -1,6 +1,9 @@
 (async function () {
   // Elements
   const states = {
+    authLoading: document.getElementById('state-auth-loading'),
+    loggedOut: document.getElementById('state-logged-out'),
+    noSub: document.getElementById('state-no-sub'),
     notNetflix: document.getElementById('state-not-netflix'),
     profiles: document.getElementById('state-profiles'),
     ready: document.getElementById('state-ready'),
@@ -20,6 +23,11 @@
     settingsUrl: document.getElementById('settings-url'),
     btnSaveSettings: document.getElementById('btn-save-settings'),
     btnBackSettings: document.getElementById('btn-back-settings'),
+    btnLogin: document.getElementById('btn-login'),
+    btnRegister: document.getElementById('btn-register'),
+    btnSubscribe: document.getElementById('btn-subscribe'),
+    btnLogoutNosub: document.getElementById('btn-logout-nosub'),
+    btnLogout: document.getElementById('btn-logout'),
     errorText: document.getElementById('error-text'),
     btnRetry: document.getElementById('btn-retry'),
     listSummary: document.getElementById('list-summary'),
@@ -67,6 +75,49 @@
         resolve(response);
       });
     });
+  }
+
+  // Auth helpers
+  async function getAuthToken() {
+    const data = await chrome.storage.local.get('imbuoAuth');
+    return data.imbuoAuth?.token || null;
+  }
+
+  async function checkAuth() {
+    const token = await getAuthToken();
+    if (!token) {
+      showState('loggedOut');
+      return;
+    }
+
+    showState('authLoading');
+
+    try {
+      const backendUrl = await getBackendUrl();
+      const resp = await fetch(`${backendUrl}${CONFIG.AUTH_ME_PATH}`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+      });
+
+      if (resp.status === 401) {
+        await chrome.storage.local.remove('imbuoAuth');
+        showState('loggedOut');
+        return;
+      }
+
+      if (!resp.ok) throw new Error('Failed to check account');
+
+      const user = await resp.json();
+
+      if (!user.subscribed) {
+        showState('noSub');
+        return;
+      }
+
+      checkTabReady();
+    } catch (err) {
+      showState('error');
+      el.errorText.textContent = 'Failed to connect to server.';
+    }
   }
 
   // Load settings
@@ -176,7 +227,26 @@
       const includeImplied = el.includeImplied.checked;
       const url = `${backendUrl}${CONFIG.ENDPOINT_PATH}?platform=netflix&include_implied=${includeImplied}`;
 
-      const response = await fetch(url);
+      const token = await getAuthToken();
+      const headers = { 'Accept': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(url, { headers });
+
+      if (response.status === 401) {
+        await chrome.storage.local.remove('imbuoAuth');
+        showState('loggedOut');
+        return;
+      }
+
+      if (response.status === 403) {
+        const body = await response.json().catch(() => ({}));
+        if (body.code === 'subscription_required') {
+          showState('noSub');
+          return;
+        }
+      }
+
       if (!response.ok) {
         throw new Error(`API returned ${response.status}: ${response.statusText}`);
       }
@@ -310,6 +380,11 @@
 
   // Listen for progress updates from content script
   chrome.runtime.onMessage.addListener((message) => {
+    if (message.action === 'authSuccess') {
+      checkAuth();
+      return;
+    }
+
     if (message.status === 'progress') {
       const pct = Math.round((message.current / message.total) * 100);
       el.progressBar.style.width = pct + '%';
@@ -386,7 +461,7 @@
   el.btnSaveSettings.addEventListener('click', async () => {
     const url = el.settingsUrl.value.trim().replace(/\/+$/, '');
     await chrome.storage.local.set({ imbuoConfig: { backendUrl: url } });
-    showState('ready');
+    checkAuth();
   });
 
   el.btnSelectAll.addEventListener('click', () => {
@@ -398,6 +473,48 @@
     el.titleList.querySelectorAll('.title-card').forEach((c) => c.classList.remove('selected'));
     updateApplyButton();
   });
+
+  // Auth button handlers
+  el.btnLogin.addEventListener('click', () => {
+    chrome.tabs.create({ url: `${CONFIG.DEFAULT_FRONTEND_URL}${CONFIG.LOGIN_WEB_PATH}` });
+  });
+
+  el.btnRegister.addEventListener('click', () => {
+    chrome.tabs.create({ url: `${CONFIG.DEFAULT_FRONTEND_URL}${CONFIG.REGISTER_WEB_PATH}` });
+  });
+
+  el.btnSubscribe.addEventListener('click', async () => {
+    const backendUrl = await getBackendUrl();
+    const token = await getAuthToken();
+    try {
+      const resp = await fetch(`${backendUrl}${CONFIG.BILLING_CHECKOUT_URL_PATH}`, {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+      });
+      const data = await resp.json();
+      if (data.checkout_url) {
+        chrome.tabs.create({ url: data.checkout_url });
+      }
+    } catch {
+      showState('error');
+      el.errorText.textContent = 'Failed to start checkout.';
+    }
+  });
+
+  async function doLogout() {
+    const token = await getAuthToken();
+    const backendUrl = await getBackendUrl();
+    try {
+      await fetch(`${backendUrl}/api/v1/logout`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+      });
+    } catch {}
+    await chrome.storage.local.remove('imbuoAuth');
+    showState('loggedOut');
+  }
+
+  el.btnLogout.addEventListener('click', doLogout);
+  el.btnLogoutNosub.addEventListener('click', doLogout);
 
   el.btnApply.addEventListener('click', startBatch);
 
@@ -417,5 +534,5 @@
 
   // Initialize
   await loadSettings();
-  await checkTabReady();
+  await checkAuth();
 })();

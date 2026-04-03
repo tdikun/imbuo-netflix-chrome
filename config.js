@@ -24,4 +24,13 @@ const CONFIG = {
 
   // Matching
   MATCH_THRESHOLD: 0.85,
+
+  // Auth endpoints (backend API)
+  AUTH_ME_PATH: '/api/v1/me',
+  BILLING_CHECKOUT_URL_PATH: '/api/v1/billing/checkout-url',
+
+  // Frontend app (opened in browser tab for login/register)
+  DEFAULT_FRONTEND_URL: 'http://localhost:8081',
+  LOGIN_WEB_PATH: '/login',
+  REGISTER_WEB_PATH: '/register',
 };
