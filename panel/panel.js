@@ -95,7 +95,7 @@
     try {
       const backendUrl = await getBackendUrl();
       const resp = await fetch(`${backendUrl}${CONFIG.AUTH_ME_PATH}`, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json', 'X-Brand': CONFIG.BRAND },
       });
 
       if (resp.status === 401) {
@@ -228,7 +228,7 @@
       const url = `${backendUrl}${CONFIG.ENDPOINT_PATH}?platform=netflix&include_implied=${includeImplied}`;
 
       const token = await getAuthToken();
-      const headers = { 'Accept': 'application/json' };
+      const headers = { 'Accept': 'application/json', 'X-Brand': CONFIG.BRAND };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
       const response = await fetch(url, { headers });
@@ -488,7 +488,7 @@
     const token = await getAuthToken();
     try {
       const resp = await fetch(`${backendUrl}${CONFIG.BILLING_CHECKOUT_URL_PATH}`, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json', 'X-Brand': CONFIG.BRAND },
       });
       const data = await resp.json();
       if (data.checkout_url) {
@@ -506,7 +506,7 @@
     try {
       await fetch(`${backendUrl}/api/v1/logout`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json', 'X-Brand': CONFIG.BRAND },
       });
     } catch {}
     await chrome.storage.local.remove('imbuoAuth');
