@@ -33,7 +33,7 @@ const CONFIG = {
   BILLING_CHECKOUT_URL_PATH: '/api/v1/billing/checkout-url',
 
   // Frontend app (opened in browser tab for login/register)
-  DEFAULT_FRONTEND_URL: 'http://localhost:5173?brand=mnsa-safe',
+  DEFAULT_FRONTEND_URL: 'http://localhost:5173',
   LOGIN_WEB_PATH: '/login',
   REGISTER_WEB_PATH: '/register',
 };
